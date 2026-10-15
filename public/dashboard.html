@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+  body { background:linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; padding:25px 20px; }
+  .container { max-width:900px; margin:0 auto; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; color:#fff; }
+  .user { display:flex; align-items:center; gap:12px; }
+  .avatar { width:42px; height:42px; background:rgba(255,255,255,0.25); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; }
+  .btn-logout { background:rgba(255,255,255,0.2); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; }
+  .btn-logout:hover { background:rgba(255,255,255,0.3); }
+  .card { background:#fff; border-radius:16px; padding:35px 30px; box-shadow:0 20px 50px rgba(0,0,0,0.25); animation:fadeIn 0.4s ease; }
+  h1 { color:#333; font-size:26px; margin-bottom:8px; }
+  .subtitle { color:#999; font-size:14px; margin-bottom:25px; }
+  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:25px; }
+  .info-item { background:#f8f9fc; padding:14px; border-radius:10px; }
+  .label { font-size:12px; color:#999; margin-bottom:4px; }
+  .value { font-size:15px; color:#333; font-weight:600; word-break:break-word; }
+  .badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; }
+  .badge.admin { background:#fee2e2; color:#991b1b; }
+  .badge.user { background:#dbeafe; color:#1e40af; }
+  .section-title { color:#333; font-size:18px; font-weight:700; margin-bottom:15px; padding-top:20px; border-top:2px solid #f0f0f0; }
+  .stats-row { display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; }
+  .stat-box { flex:1; min-width:100px; padding:12px; border-radius:8px; text-align:center; background:#667eea; color:#fff; }
+  .stat-box b { display:block; font-size:24px; }
+  .stat-box span { font-size:12px; opacity:0.9; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:12px; text-align:left; border-bottom:1px solid #eee; font-size:14px; }
+  th { background:#f8f9fc; color:#555; font-weight:600; font-size:13px; }
+  .empty { text-align:center; color:#aaa; padding:25px; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(15px); } to { opacity:1; transform:translateY(0); } }
+  @media (max-width:600px) { .info-grid { grid-template-columns:1fr; } table { font-size:12px; } th, td { padding:8px; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <div class="user">
+      <div class="avatar" id="avatar">-</div>
+      <div>
+        <div style="font-size:12px;opacity:0.85;">Login sebagai</div>
+        <div style="font-weight:700;" id="emailUser">-</div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="card">
+    <h1>🎉 Selamat Datang!</h1>
+    <p class="subtitle">Kamu berhasil login ke akunmu.</p>
+
+    <div class="info-grid">
+      <div class="info-item"><div class="label">Email</div><div class="value" id="infoEmail">-</div></div>
+      <div class="info-item"><div class="label">Role</div><div class="value" id="infoRole">-</div></div>
+      <div class="info-item"><div class="label">Tanggal Daftar</div><div class="value" id="infoDaftar">-</div></div>
+      <div class="info-item"><div class="label">Status Akun</div><div class="value">✅ Aktif</div></div>
+    </div>
+
+    <!-- KHUSUS ADMIN -->
+    <div id="adminSection" style="display:none;">
+      <div class="section-title">👥 Data Semua User yang Sudah Daftar</div>
+      <div class="stats-row" id="statsRow"></div>
+      <table>
+        <thead><tr><th>No</th><th>Email</th><th>Role</th><th>Daftar</th></tr></thead>
+        <tbody id="tabelUsers"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  if (!token) window.location.href = '/login.html';
+
+  async function loadMe() {
+    try {
+      const res = await fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.status === 401) { logout(); return; }
+      const user = await res.json();
+
+      document.getElementById('avatar').textContent = (user.email || 'U').charAt(0).toUpperCase();
+      document.getElementById('emailUser').textContent = user.email;
+      document.getElementById('infoEmail').textContent = user.email;
+      document.getElementById('infoRole').innerHTML = `<span class="badge ${user.role}">${user.role.toUpperCase()}</span>`;
+      document.getElementById('infoDaftar').textContent = user.tanggalDaftar || '-';
+
+      if (user.role === 'admin') {
+        document.getElementById('adminSection').style.display = 'block';
+        loadUsers();
+      }
+    } catch (e) { alert('Gagal memuat data'); }
+  }
+
+  async function loadUsers() {
+    const res = await fetch('/api/users', { headers: { 'Authorization': 'Bearer ' + token } });
+    const users = await res.json();
+    const tbody = document.getElementById('tabelUsers');
+
+    // Statistik
+    const totalAdmin = users.filter(u => u.role === 'admin').length;
+    const totalUser = users.filter(u => u.role === 'user').length;
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat-box"><b>${users.length}</b><span>Total User</span></div>
+      <div class="stat-box" style="background:#ef4444;"><b>${totalAdmin}</b><span>Admin</span></div>
+      <div class="stat-box" style="background:#22c55e;"><b>${totalUser}</b><span>User Biasa</span></div>
+    `;
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Belum ada user</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map((u, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td><b>${u.email}</b></td>
+        <td><span class="badge ${u.role}">${u.role}</span></td>
+        <td>${u.tanggalDaftar || '-'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function logout() {
+    if (confirm('Yakin logout?')) {
+      localStorage.clear();
+      window.location.href = '/login.html';
+    }
+  }
+
+  loadMe();
+</script>
+</body>
+</html>

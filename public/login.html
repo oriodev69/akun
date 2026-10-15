@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+  body { background:linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .card { background:#fff; padding:40px 35px; border-radius:16px; width:100%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.25); animation:fadeIn 0.4s ease; }
+  .icon { text-align:center; font-size:52px; margin-bottom:10px; }
+  h1 { text-align:center; color:#333; margin-bottom:6px; font-size:24px; }
+  .subtitle { text-align:center; color:#999; font-size:13px; margin-bottom:25px; }
+  .field { margin-bottom:15px; }
+  .field label { display:block; font-size:13px; color:#555; margin-bottom:6px; font-weight:600; }
+  .field input { width:100%; padding:13px 14px; border:2px solid #e0e0e0; border-radius:10px; font-size:14px; outline:none; transition:0.2s; }
+  .field input:focus { border-color:#667eea; }
+  .btn { width:100%; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px; transition:0.2s; }
+  .btn:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(102,126,234,0.4); }
+  .btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+  .msg { padding:12px; border-radius:8px; text-align:center; font-size:13px; font-weight:600; margin-top:15px; display:none; }
+  .msg.success { background:#d1fae5; color:#065f46; display:block; }
+  .msg.error { background:#fee2e2; color:#991b1b; display:block; }
+  .footer { text-align:center; font-size:13px; color:#999; margin-top:20px; }
+  .footer a { color:#667eea; font-weight:600; text-decoration:none; }
+  .info { font-size:12px; color:#bbb; text-align:center; margin-top:15px; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(15px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🔐</div>
+  <h1>Login</h1>
+  <p class="subtitle">Masuk ke akun kamu</p>
+
+  <div class="field">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="kamu@email.com" autocomplete="off">
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Password kamu">
+  </div>
+
+  <button class="btn" id="btnLogin" onclick="login()">Masuk</button>
+  <div class="msg" id="msg"></div>
+
+  <div class="footer">Belum punya akun? <a href="/register.html">Daftar di sini</a></div>
+  <div class="info">Admin: admin@admin.com / admin123</div>
+</div>
+
+<script>
+  if (localStorage.getItem('token')) window.location.href = '/dashboard';
+
+  async function login() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('btnLogin');
+    const msg = document.getElementById('msg');
+    msg.className = 'msg'; msg.textContent = '';
+    btn.disabled = true; btn.textContent = '⏳ Memproses...';
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        msg.className = 'msg error';
+        msg.textContent = '❌ ' + data.error;
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('email', data.email);
+      localStorage.setItem('role', data.role);
+
+      msg.className = 'msg success';
+      msg.textContent = '✅ Login berhasil!';
+      setTimeout(() => window.location.href = '/dashboard', 700);
+    } catch (e) {
+      msg.className = 'msg error';
+      msg.textContent = '❌ Server tidak merespon';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Masuk';
+    }
+  }
+
+  document.getElementById('password').addEventListener('keypress', e => {
+    if (e.key === 'Enter') login();
+  });
+</script>
+</body>
+</html>
